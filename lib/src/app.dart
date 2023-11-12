@@ -2,7 +2,6 @@ import "package:flutter/material.dart";
 import "package:flutter_web_whatsapp/src/core/routes/app_routes.dart";
 
 import "core/ui/default_colors/default_colors.dart";
- 
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -19,7 +18,6 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: "/",
       onGenerateRoute: AppRoutes.createRoutes,
-      
     );
   }
 }
