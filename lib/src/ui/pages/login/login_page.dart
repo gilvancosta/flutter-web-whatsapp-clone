@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_web_whatsapp/src/core/ui/default_colors/default_colors.dart';
 
@@ -44,27 +43,22 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  uploadImageToStorage(UserEntity userData)
-  {
-    if(selectedImage != null)
-    {
-      Reference imageRef = FirebaseStorage.instance.ref("ProfileImages/${userData.uid}.jpg");
+  uploadImageToStorage(UserEntity userData) {
+    if (selectedImage != null) {
+      Reference imageRef =
+          FirebaseStorage.instance.ref("ProfileImages/${userData.uid}.jpg");
       UploadTask task = imageRef.putData(selectedImage!);
-      task.whenComplete(() async
-      {
-         String urlImage = await task.snapshot.ref.getDownloadURL();
-         userData.image = urlImage;
+      task.whenComplete(() async {
+        String urlImage = await task.snapshot.ref.getDownloadURL();
+        userData.image = urlImage;
 
-         //3.save userData to firestore database
-        await FirebaseAuth.instance.currentUser?.updateDisplayName(userData.name);
+        //3.save userData to firestore database
+        await FirebaseAuth.instance.currentUser
+            ?.updateDisplayName(userData.name);
         await FirebaseAuth.instance.currentUser?.updatePhotoURL(urlImage);
 
         final usersReference = FirebaseFirestore.instance.collection("users");
-        usersReference
-            .doc(userData.uid)
-            .set(userData.toJson())
-            .then((value)
-        {
+        usersReference.doc(userData.uid).set(userData.toJson()).then((value) {
           setState(() {
             loadingOn = false;
           });
@@ -72,9 +66,7 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacementNamed(context, "/home");
         });
       });
-    }
-    else
-    {
+    } else {
       var snackBar = const SnackBar(
         content: Center(child: Text("Please choose image first.")),
         backgroundColor: DefaultColors.primaryColor,
@@ -83,35 +75,24 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-
-
- signUpUserNow(nameInput, emailInput, passwordInput) async
-  {
+  signUpUserNow(nameInput, emailInput, passwordInput) async {
     //1. create new user in firebase authentication
-    final userCreated = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: emailInput,
-        password: passwordInput
-    );
+    final userCreated = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(
+            email: emailInput, password: passwordInput);
 
     //2. upload image to storage
     String? uidOfCreatedUser = userCreated.user!.uid;
-    if(uidOfCreatedUser != null)
-    {
+    if (uidOfCreatedUser != null) {
       final userData = UserEntity(uidOfCreatedUser, nameInput, emailInput, passwordInput);
       uploadImageToStorage(userData);
     }
-
   }
 
-
-
-  loginUserNow(emailInput, passwordInput)
-  {
-    FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailInput,
-        password: passwordInput
-    ).then((value)
-    {
+  loginUserNow(emailInput, passwordInput) {
+    FirebaseAuth.instance
+        .signInWithEmailAndPassword(email: emailInput, password: passwordInput)
+        .then((value) {
       setState(() {
         loadingOn = false;
       });
@@ -120,10 +101,10 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  formValidation()
-  {
+  formValidation() {
     setState(() {
       loadingOn = true;
+
       errorInEmail = false;
       errorInPassword = false;
       errorInName = false;
@@ -134,34 +115,22 @@ class _LoginPageState extends State<LoginPage> {
     String emailInput = emailController.text.trim();
     String passwordInput = passwordController.text.trim();
 
-
-
-    if(emailInput.isNotEmpty && emailInput.contains("@"))
-    {
-      if(passwordInput.isNotEmpty && passwordInput.length > 7)
-      {
-        if(doesUserWantToSignUp == true) //signup form
-        {
-          if(nameInput.isNotEmpty && nameInput.length >= 3)
-          {
+    if (emailInput.isNotEmpty && emailInput.contains("@")) {
+      if (passwordInput.isNotEmpty && passwordInput.length > 7) {
+        if (doesUserWantToSignUp == true) {
+          if (nameInput.isNotEmpty && nameInput.length >= 3) {
             signUpUserNow(nameInput, emailInput, passwordInput);
-          }
-          else
-          {
+          } else {
             var snackBar = const SnackBar(
               content: Center(child: Text("Name is not valid.")),
               backgroundColor: DefaultColors.primaryColor,
             );
             ScaffoldMessenger.of(context).showSnackBar(snackBar);
           }
-        }
-        else //login form
-        {
+        } else {
           loginUserNow(emailInput, passwordInput);
         }
-      }
-      else
-      {
+      } else {
         var snackBar = const SnackBar(
           content: Center(child: Text("Password is not valid.")),
           backgroundColor: DefaultColors.primaryColor,
@@ -172,9 +141,7 @@ class _LoginPageState extends State<LoginPage> {
           loadingOn = false;
         });
       }
-    }
-    else
-    {
+    } else {
       var snackBar = const SnackBar(
         content: Center(child: Text("Email is not valid.")),
         backgroundColor: DefaultColors.primaryColor,
@@ -186,7 +153,6 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
