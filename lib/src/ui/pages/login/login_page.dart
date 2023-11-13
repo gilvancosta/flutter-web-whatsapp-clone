@@ -1,7 +1,16 @@
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+
+//import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_web_whatsapp/src/core/ui/default_colors/default_colors.dart';
+
+import '../../../domain/entities/user/user_entity.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,6 +34,159 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController passwordController = TextEditingController();
 
   bool loadingOn = false;
+
+  chooseImage() async {
+    FilePickerResult? chosenImageFile =
+        await FilePicker.platform.pickFiles(type: FileType.image);
+
+    setState(() {
+      selectedImage = chosenImageFile!.files.single.bytes;
+    });
+  }
+
+  uploadImageToStorage(UserEntity userData)
+  {
+    if(selectedImage != null)
+    {
+      Reference imageRef = FirebaseStorage.instance.ref("ProfileImages/${userData.uid}.jpg");
+      UploadTask task = imageRef.putData(selectedImage!);
+      task.whenComplete(() async
+      {
+         String urlImage = await task.snapshot.ref.getDownloadURL();
+         userData.image = urlImage;
+
+         //3.save userData to firestore database
+        await FirebaseAuth.instance.currentUser?.updateDisplayName(userData.name);
+        await FirebaseAuth.instance.currentUser?.updatePhotoURL(urlImage);
+
+        final usersReference = FirebaseFirestore.instance.collection("users");
+        usersReference
+            .doc(userData.uid)
+            .set(userData.toJson())
+            .then((value)
+        {
+          setState(() {
+            loadingOn = false;
+          });
+
+          Navigator.pushReplacementNamed(context, "/home");
+        });
+      });
+    }
+    else
+    {
+      var snackBar = const SnackBar(
+        content: Center(child: Text("Please choose image first.")),
+        backgroundColor: DefaultColors.primaryColor,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    }
+  }
+
+
+
+ signUpUserNow(nameInput, emailInput, passwordInput) async
+  {
+    //1. create new user in firebase authentication
+    final userCreated = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailInput,
+        password: passwordInput
+    );
+
+    //2. upload image to storage
+    String? uidOfCreatedUser = userCreated.user!.uid;
+    if(uidOfCreatedUser != null)
+    {
+      final userData = UserEntity(uidOfCreatedUser, nameInput, emailInput, passwordInput);
+      uploadImageToStorage(userData);
+    }
+
+  }
+
+
+
+  loginUserNow(emailInput, passwordInput)
+  {
+    FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailInput,
+        password: passwordInput
+    ).then((value)
+    {
+      setState(() {
+        loadingOn = false;
+      });
+
+      Navigator.pushReplacementNamed(context, "/home");
+    });
+  }
+
+  formValidation()
+  {
+    setState(() {
+      loadingOn = true;
+      errorInEmail = false;
+      errorInPassword = false;
+      errorInName = false;
+      errorInPicture = false;
+    });
+
+    String nameInput = nameController.text.trim();
+    String emailInput = emailController.text.trim();
+    String passwordInput = passwordController.text.trim();
+
+
+
+    if(emailInput.isNotEmpty && emailInput.contains("@"))
+    {
+      if(passwordInput.isNotEmpty && passwordInput.length > 7)
+      {
+        if(doesUserWantToSignUp == true) //signup form
+        {
+          if(nameInput.isNotEmpty && nameInput.length >= 3)
+          {
+            signUpUserNow(nameInput, emailInput, passwordInput);
+          }
+          else
+          {
+            var snackBar = const SnackBar(
+              content: Center(child: Text("Name is not valid.")),
+              backgroundColor: DefaultColors.primaryColor,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          }
+        }
+        else //login form
+        {
+          loginUserNow(emailInput, passwordInput);
+        }
+      }
+      else
+      {
+        var snackBar = const SnackBar(
+          content: Center(child: Text("Password is not valid.")),
+          backgroundColor: DefaultColors.primaryColor,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+        setState(() {
+          loadingOn = false;
+        });
+      }
+    }
+    else
+    {
+      var snackBar = const SnackBar(
+        content: Center(child: Text("Email is not valid.")),
+        backgroundColor: DefaultColors.primaryColor,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+      setState(() {
+        loadingOn = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +239,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.all(Radius.circular(10))),
                     child: Container(
                       padding: const EdgeInsets.all(40),
-                      width: 500,
+                      width: 400,
                       child: Column(
                         children: [
                           //Profile Image
@@ -101,7 +263,9 @@ class _LoginPageState extends State<LoginPage> {
                           Visibility(
                             visible: doesUserWantToSignUp,
                             child: OutlinedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                chooseImage();
+                              },
                               style: errorInPicture
                                   ? OutlinedButton.styleFrom(
                                       side: const BorderSide(
@@ -180,7 +344,9 @@ class _LoginPageState extends State<LoginPage> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                formValidation();
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: DefaultColors.primaryColor,
                               ),
@@ -222,7 +388,7 @@ class _LoginPageState extends State<LoginPage> {
                                   });
                                 },
                               ),
-                              const Text("Sign Up"),
+                              const Text("Register"),
                             ],
                           ),
                         ],
